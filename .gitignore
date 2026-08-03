@@ -1,0 +1,19 @@
+# env
+neuropipe/
+
+# macOS
+.DS_Store
+*.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+
+# IDE / editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+data/
+cleaned_data
+

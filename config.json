@@ -1,0 +1,94 @@
+{
+  "eeg_system": "biosemi",
+  "_eeg_system_note": "These notebooks are written for BioSemi recordings (.bdf files, 'Status' stim channel, EXG external electrodes). Other systems are covered by their own notebooks, since the reader function, channel naming, and montage all differ.",
+
+  "paths": {
+    "data_folder": "data",
+    "cleaned_data_folder": "cleaned_data",
+    "analyses_folder": "analyses",
+    "logs_folder": "logs",
+    "reports_folder": "reports",
+    "figures_folder": "figures",
+    "raw_filename": "p34.bdf",
+    "log_filename": "p34-matrix_senteces_order.txt"
+  },
+
+  "channels": {
+    "montage": "biosemi32",
+    "eog": ["EXG1", "EXG2"],
+    "reference": ["EXG3", "EXG4"],
+    "exclude": ["EXG5", "EXG6", "EXG7", "EXG8"],
+    "stim_channel": "Status",
+    "_exclude_note": "Usually known upfront from your system's wiring/cap documentation. If that documentation is missing, you can still identify these before analysis: unused channels typically show a dead/flat or pure-noise signal when plotted, unlike real EEG channels."
+  },
+
+  "crop": {
+    "tmin": 2360,
+    "tmax": null,
+    "_note": "Set both to null if your file contains only one paradigm. If you don't know the exact timestamps, use mne.find_events() to locate the trigger boundaries of your paradigm of interest instead of hardcoding seconds here."
+  },
+
+  "resample": {
+    "cleaning_hz": 500
+  },
+
+  "power_line": {
+    "region": "EU",
+    "frequencies_by_region": {
+      "EU": [50, 100, 150],
+      "NA": [60, 120, 180]
+    }
+  },
+
+  "ica": {
+    "method": "infomax",
+    "extended": true,
+    "random_state": 97,
+    "filter_l_freq": 1,
+    "filter_h_freq": 100,
+    "eog_threshold": 3.0,
+    "muscle_threshold": 0.5,
+    "_threshold_note": "Both control how many ICA components get flagged as artifacts, and for both, HIGHER = STRICTER = FEWER components flagged. eog_threshold is a z-score on the correlation with the EOG channels (MNE default 3.0). muscle_threshold scores each component against a typical muscle topography and spectrum (MNE default 0.5, which is fairly permissive on 32-channel EEG - raise it toward 0.8-1.0 if too many components are being flagged as muscle)."
+  },
+
+  "filter_bands": {
+    "active": "auditory_erp",
+    "options": {
+      "auditory_erp": [0.5, 30],
+      "alpha": [8, 13],
+      "beta": [13, 30],
+      "theta": [4, 8]
+    },
+    "_note": "Which band to keep depends on the analysis you're running, not just the dataset. Add your own named option and point 'active' at it instead of editing numbers inline. Keep the high-pass edge at 0.5 Hz or below unless you have a specific reason to go higher - increasing it also removes very low-frequency drift, but sweat artifacts already only produce drift on the order of 3+ seconds, so a higher high-pass buys little and risks distorting slow ERP components."
+  },
+
+  "condition_labeling": {
+    "column": "file",
+    "keyword": "random",
+    "keyword_label": "random",
+    "default_label": "context",
+    "_note": "Rows in the log file whose 'column' value starts with 'keyword' get 'keyword_label'; everything else gets 'default_label'. Adjust to match how your own stimulus filenames or log columns encode condition."
+  },
+
+  "epochs": {
+    "event_id": {"sentence onset": 256},
+    "tmin": -0.2,
+    "tmax": 7.0,
+    "baseline": [-0.2, 0],
+    "_note": "event_id must match your own trigger codes; add more entries if you have multiple event types. tmax should cover the longest stimulus/response window you need across all analyses - individual analyses can crop back down (see 'aep' below).",
+    "_event_id_note": "Usually known upfront from your experiment/trigger documentation. If it's missing or unclear, run mne.find_events(raw) first (no event_id filter) - it lists every trigger code actually present in the recording, and you can identify the one(s) you need from there before filling in this field."
+  },
+
+  "aep": {
+    "crop_tmin": -0.2,
+    "crop_tmax": 0.6,
+    "_note": "Window this analysis looks at, cut from the already-created epochs. It must fall inside epochs.tmin/tmax above - the epoch defines what data exists at all, this crop just narrows it for the AEP, where P1/N1/P2 all land within ~600 ms. Topomap time points are chosen automatically from the detected peaks, so there is no times setting here."
+  },
+
+  "tfr": {
+    "freq_min": 1,
+    "freq_max": 30,
+    "n_freqs": 30,
+    "n_cycles": 3
+  }
+}

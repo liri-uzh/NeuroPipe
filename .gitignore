@@ -17,3 +17,7 @@ neuropipe/
 data/
 cleaned_data
 local/
+reports/
+figures/
+analyses/
+logs/

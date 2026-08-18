@@ -39,7 +39,7 @@ def use_qt_browser(interval=0.02):
     import mne
     from qtpy.QtWidgets import QApplication
 
-    mne.viz.set_browser_backend("qt")
+    mne.viz.set_browser_backend('qt')
 
     async def _pump():
         while True:
@@ -77,7 +77,9 @@ def _(mo):
     mo.md(r"""
     ## Configuration
 
-    All researcher- and setup-specific choices for this pipeline (file paths, which channels are EEG/EOG/reference, the EEG system, power-line frequency, filter bands, ICA settings, event codes, epoch windows, ...) live in **`config.json`** at the repository root, instead of being hardcoded throughout the notebook. This is the file you should edit when adapting this tutorial to your own recording — you should rarely need to change the code cells themselves. The sections this notebook reads most are `ica`, `channels` and `filter_bands`.
+    All researcher- and setup-specific choices for this pipeline (which channels are EEG/EOG/reference, the EEG system, power-line frequency, filter bands, ICA settings, event codes, epoch windows, ...) live in **`config.json`** at the repository root, instead of being hardcoded throughout the notebook. This is the file you should edit when adapting this tutorial to your own recording — you should rarely need to change the code cells themselves. The sections this notebook reads most are `ica`, `channels` and `filter_bands`.
+
+    Which participant to clean is not one of them: that is chosen with the file browser below.
 
     Open `config.json` next to this notebook to see every adjustable parameter and a short note on what it controls.
     """)
@@ -111,12 +113,6 @@ def _():
     # Folder where figures will be saved
     figures_folder = Path(config["paths"]["figures_folder"])
     figures_folder.mkdir(exist_ok=True)
-
-    # Participant's filename
-    participant_filename = config["paths"]["raw_filename"]
-
-    # Filename without extension, used as a prefix for every file this notebook reads and writes
-    participant_stem = participant_filename.replace(".bdf", "")
     return (
         Path,
         cleaned_data_folder,
@@ -124,9 +120,43 @@ def _():
         figures_folder,
         label_components,
         mne,
-        participant_filename,
-        participant_stem,
     )
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## The recording this notebook cleans
+
+    The participant is read from `config['paths']['raw_filename']`, which follows the recording selected in `1_prepare_raw_EEG.py`. The matching `*_prepared_raw.fif` in `config['paths']['cleaned_data_folder']` is opened below, and the participant name is the prefix for every file this notebook writes.
+    """)
+    return
+
+
+@app.cell
+def _(Path, cleaned_data_folder, config):
+    # Participant to clean, and the prefix for every file this notebook writes
+    participant_stem = Path(config['paths']['raw_filename']).stem
+
+    prepared_path = cleaned_data_folder / f"{participant_stem}_prepared_raw.fif"
+    participant_filename = prepared_path.name
+    return participant_filename, participant_stem, prepared_path
+
+
+@app.cell(hide_code=True)
+def _(cleaned_data_folder, mo, participant_stem, prepared_path):
+    _output_path = cleaned_data_folder / f"{participant_stem}_cleaned_raw.fif"
+
+    mo.md(
+        f"""
+        Cleaning **`{prepared_path}`**
+
+        Participant **`{participant_stem}`** — the cleaned data will be written to
+        `{_output_path}`, and the log, figures and
+        cleaning report are named after the participant in the same way.
+        """
+    )
+    return
 
 
 @app.cell(hide_code=True)
@@ -206,15 +236,11 @@ def _(mo):
 
 
 @app.cell
-def _(cleaned_data_folder, logger, mne, participant_stem):
+def _(logger, mne, prepared_path):
     # Load the prepared data: cropped, re-referenced, resampled and notch-filtered
-    prepared_path = cleaned_data_folder / f"{participant_stem}_prepared_raw.fif"
-
     if not prepared_path.exists():
         raise FileNotFoundError(
-            f"{prepared_path} not found. Run 1_prepare_raw_EEG.ipynb first - its last cell writes "
-            "this file. If 'raw_filename' or 'cleaned_data_folder' changed in config.json since then, "
-            "run it again so the cached file matches."
+            f"{prepared_path} not found. Run 1_prepare_raw_EEG.py to create it."
         )
 
     raw = mne.io.read_raw_fif(
@@ -262,7 +288,7 @@ def _(raw):
 
     # You can also screen through the raw data by plotting it.
     # Show every channel the object contains (EEG + EOG + misc + stim), rather than a hardcoded count.
-    raw.plot(n_channels=len(raw.ch_names), duration=10, scalings=dict(eeg=100e-6))
+    raw.plot(n_channels=len(raw.ch_names), duration=10, scalings=dict(eeg=100e-6), block=True)
 
     # Note: You can already exclude some channels from the raw data if you see that they are noisy by clicking on the channel name in the plot
     # They will then be stored in the raw.info['bads'] attribute

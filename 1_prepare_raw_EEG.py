@@ -7,7 +7,7 @@
 # ///
 import marimo
 
-__generated_with = "0.23.16"
+__generated_with = "0.24.0"
 app = marimo.App()
 
 
@@ -33,7 +33,9 @@ def _(mo):
     mo.md(r"""
     ## Configuration
 
-    All researcher- and setup-specific choices for this pipeline (file paths, which channels are EEG/EOG/reference, the EEG system, power-line frequency, filter bands, ICA settings, event codes, epoch windows, ...) live in **`config.json`** at the repository root, instead of being hardcoded throughout the notebook. This is the file you should edit when adapting this tutorial to your own recording — you should rarely need to change the code cells themselves.
+    All researcher- and setup-specific choices for this pipeline (which channels are EEG/EOG/reference, the EEG system, power-line frequency, filter bands, ICA settings, event codes, epoch windows, ...) live in **`config.json`** at the repository root, instead of being hardcoded throughout the notebook. This is the file you should edit when adapting this tutorial to your own recording — you should rarely need to change the code cells themselves.
+
+    The recording itself is the exception: it is chosen with the file browser below, so it can live anywhere on the machine — an external drive, a shared network folder — rather than having to sit in one particular folder.
 
     Open `config.json` next to this notebook to see every adjustable parameter and a short note on what it controls.
     """)
@@ -59,9 +61,6 @@ def _():
             "and check the line/column mentioned above."
         ) from e
 
-    # Folder where the data is stored
-    data_folder = Path(config['paths']['data_folder'])
-
     # Folder where the cleaned data will be stored
     cleaned_data_folder = Path(config['paths']['cleaned_data_folder'])
     cleaned_data_folder.mkdir(exist_ok=True)  # create the folder if it doesn't exist
@@ -69,22 +68,116 @@ def _():
     # Folder where figures will be saved
     figures_folder = Path(config['paths']['figures_folder'])
     figures_folder.mkdir(exist_ok=True)
+    return Path, cleaned_data_folder, config, figures_folder, mne
 
-    # Participant's filename
-    participant_filename = config['paths']['raw_filename']
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ## Selecting the recording
+
+    Pick the file to prepare in the browser below. Everything else about this participant follows from that one choice: the folder to read from, the participant name, and the prefix given to every file this notebook writes — there is no second setting that can fall out of sync with it.
+
+    If nothing is selected, the notebook falls back to the recording named by `config['paths']['data_folder']` and `['raw_filename']` — which is also where the choice is recorded, once the prepared data is saved in the last cell. The notebooks that follow read those two values, so picking a participant here points the whole pipeline at it, and an unattended run over a batch of participants still works without anyone clicking anything.
+    """)
+    return
+
+
+@app.cell
+def _(Path, config, mo):
+    # Open the browser in the folder named in config.json, falling back to the notebook's own folder
+    # when it doesn't exist (data/ is gitignored, so a fresh clone of the repository has none yet).
+    _start = Path(config['paths']['data_folder'])
+
+    raw_browser = mo.ui.file_browser(
+        initial_path=_start if _start.is_dir() else Path.cwd(),
+        filetypes=['.bdf'],  # BioSemi recordings; widen this for other EEG systems
+        selection_mode='file',
+        multiple=False,
+        label='Recording to prepare',
+    )
+    raw_browser
+    return (raw_browser,)
+
+
+@app.cell
+def _(Path, config, raw_browser):
+    # Use the selected file, or the one named in config.json when the browser is still empty
+    _selected = raw_browser.value
+    raw_path = (
+        _selected[0].path if _selected
+        else Path(config['paths']['data_folder']) / config['paths']['raw_filename']
+    )
+
+    data_folder = raw_path.parent  # folder the recording sits in
+    participant_filename = raw_path.name
 
     # Filename without extension, used as a prefix for every file this notebook writes
-    participant_stem = participant_filename.replace('.bdf', '')
-    return (
-        Path,
-        cleaned_data_folder,
-        config,
-        data_folder,
-        figures_folder,
-        mne,
-        participant_filename,
-        participant_stem,
+    participant_stem = raw_path.stem
+    return data_folder, participant_filename, participant_stem, raw_path
+
+
+@app.cell(hide_code=True)
+def _(Path):
+    def remember_selection(raw_path):
+        """Record this recording in config.json, so the next notebook opens the matching file.
+
+        Only the two path values are rewritten, in place, which leaves the key order, the section
+        spacing and the notes in config.json exactly as they are. The folder is stored relative to
+        the notebook when the recording sits inside the project, and as a full path when it lives
+        somewhere else. Returns True when the file was changed, False when it already said this.
+        """
+        import json
+        import re
+
+        try:
+            folder = raw_path.parent.relative_to(Path.cwd())
+        except ValueError:
+            folder = raw_path.parent  # recording lives outside the project folder
+
+        config_path = Path('config.json')
+        original = config_path.read_text()
+        updated = original
+
+        for key, new_value in [('data_folder', str(folder)), ('raw_filename', raw_path.name)]:
+            # json.dumps quotes and escapes the value; a replacement function is used so that
+            # backslashes in Windows paths are not read as regular-expression escapes.
+            updated, hits = re.subn(
+                rf'("{key}":\s*)"[^"]*"',
+                lambda match: match.group(1) + json.dumps(new_value),
+                updated,
+                count=1,
+            )
+            if hits != 1:
+                raise ValueError(f"Expected one '{key}' entry in config.json, found {hits}.")
+
+        if updated == original:
+            return False  # already points at this recording, so leave the file untouched
+
+        json.loads(updated)  # refuse to write anything that would not parse
+
+        tmp_path = config_path.with_name('config.json.tmp')
+        tmp_path.write_text(updated)
+        tmp_path.replace(config_path)  # atomic: an interrupted write cannot truncate config.json
+        return True
+
+    return (remember_selection,)
+
+
+@app.cell(hide_code=True)
+def _(cleaned_data_folder, mo, participant_stem, raw_path):
+    _output_path = cleaned_data_folder / f"{participant_stem}_prepared_raw.fif"
+
+    mo.md(
+        f"""
+        Reading **`{raw_path}`**
+
+        Participant **`{participant_stem}`** — the prepared data will be written to
+        `{_output_path}`, and the log and figures are
+        named after the participant in the same way.
+        """
     )
+    return
 
 
 @app.cell(hide_code=True)
@@ -339,6 +432,8 @@ def _(mo):
 
     At this point the data has been read, cropped, re-referenced, resampled and freed of power line noise, but no artifacts have been removed from it yet. It is cached here in MNE's native `.fif` format so that `2_ica_artifact_removal.ipynb` can begin directly at the ICA step: reading and resampling a multi-GB `.bdf` takes a while, and the ICA notebook is typically run more than once while tuning the thresholds in `config['ica']`. The full measurement info travels with the file — channel types, montage, crop, reference, sampling frequency and the notch filter — so none of the setup above has to be repeated.
 
+    Saving also records the participant in `config.json`, rewriting `paths.data_folder` and `paths.raw_filename` in place — the two values the next notebook reads to find this file. Nothing else in the file is touched, and re-running with the same recording selected leaves it alone entirely.
+
     Two files end up in `config['paths']['cleaned_data_folder']`, and it is worth keeping them apart:
     - **`*_prepared_raw.fif`** — written here, the input to the ICA notebook.
     - **`*_cleaned_raw.fif`** — written at the end of the ICA notebook, the fully cleaned data the analysis notebook loads.
@@ -347,11 +442,27 @@ def _(mo):
 
 
 @app.cell
-def _(cleaned_data_folder, logger, participant_stem, raw):
+def _(
+    cleaned_data_folder,
+    logger,
+    participant_stem,
+    raw,
+    raw_path,
+    remember_selection,
+):
     # Save the prepared data for the next notebook
     prepared_path = cleaned_data_folder / f"{participant_stem}_prepared_raw.fif"
     raw.save(prepared_path, overwrite=True)
     logger.info(f"Saved prepared data to {prepared_path}")
+
+    # Point config.json at this recording so the next notebook opens the matching file
+    if remember_selection(raw_path):
+        logger.info(f"Recorded {raw_path} in config.json")
+    return
+
+
+@app.cell
+def _():
     return
 
 

@@ -10,7 +10,8 @@
     "reports_folder": "reports",
     "figures_folder": "figures",
     "raw_filename": "p34_500.bdf",
-    "log_filename": "p34-matrix_senteces_order.txt"
+    "log_filename": "p34-matrix_senteces_order.txt",
+    "_note": "data_folder and raw_filename name will be overwritten by Notebook 1."
   },
 
   "channels": {

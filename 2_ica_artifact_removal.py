@@ -1,3 +1,12 @@
+# /// script
+# requires-python = ">=3.14"
+# dependencies = [
+#     "marimo>=0.24.0",
+#     "mne[full]==1.12.1",
+#     "mne-icalabel==0.9.0",
+# ]
+# ///
+
 import marimo
 
 __generated_with = "0.24.0"
@@ -46,7 +55,7 @@ def use_qt_browser(interval=0.02):
 
     # Stash the task on the loop, which outlives any single cell run, so re-running
     # a plotting cell does not leave a second pump behind.
-    task = getattr(loop, '_mne_qt_pump', None)
+    task = getattr(loop, "_mne_qt_pump", None)
     if task is None or task.done():
         task = loop.create_task(_pump())
         loop._mne_qt_pump = task
@@ -86,7 +95,7 @@ def _():
 
     # Load researcher/setup-specific settings. Edit config.json, not this cell, to adapt this tutorial to your own data.
     try:
-        with open('config.json') as f:
+        with open("config.json") as f:
             config = json.load(f)
     except json.JSONDecodeError as e:
         raise ValueError(
@@ -98,11 +107,11 @@ def _():
         ) from e
 
     # Folder where the prepared data is read from and the cleaned data will be stored
-    cleaned_data_folder = Path(config['paths']['cleaned_data_folder'])
+    cleaned_data_folder = Path(config["paths"]["cleaned_data_folder"])
     cleaned_data_folder.mkdir(exist_ok=True)  # create the folder if it doesn't exist
 
     # Folder where figures will be saved
-    figures_folder = Path(config['paths']['figures_folder'])
+    figures_folder = Path(config["paths"]["figures_folder"])
     figures_folder.mkdir(exist_ok=True)
     return (
         Path,
@@ -170,7 +179,7 @@ def _(mo):
 def _(Path, config, figures_folder, participant_filename, participant_stem):
     import logging
 
-    logs_folder = Path(config['paths']['logs_folder'])
+    logs_folder = Path(config["paths"]["logs_folder"])
     logs_folder.mkdir(exist_ok=True)
 
     logger = logging.getLogger(f"neuropipe.clean.{participant_filename}")
@@ -179,16 +188,19 @@ def _(Path, config, figures_folder, participant_filename, participant_stem):
         logger.handlers.clear()  # avoid duplicate handlers if this cell is re-run
 
     log_path = logs_folder / f"{participant_stem}_cleaning.log"
-    file_handler = logging.FileHandler(log_path, mode='a')  # append, so earlier runs are never overwritten
-    file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    file_handler = logging.FileHandler(
+        log_path, mode="a"
+    )  # append, so earlier runs are never overwritten
+    file_handler.setFormatter(
+        logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
+    )
     logger.addHandler(file_handler)
 
     console_handler = logging.StreamHandler()
-    console_handler.setFormatter(logging.Formatter('%(levelname)s - %(message)s'))
+    console_handler.setFormatter(logging.Formatter("%(levelname)s - %(message)s"))
     logger.addHandler(console_handler)
 
     logger.info(f"=== Starting cleaning pipeline for {participant_filename} ===")
-
 
     def save_fig(fig, name, dpi=300):
         """Save a figure into the figures folder, prefixed with the participant name.
@@ -203,7 +215,7 @@ def _(Path, config, figures_folder, participant_filename, participant_stem):
         for i, f in enumerate(figs):
             suffix = f"_{i + 1}" if len(figs) > 1 else ""
             path = figures_folder / f"{participant_stem}_{name}{suffix}.png"
-            f.savefig(path, dpi=dpi, bbox_inches='tight')
+            f.savefig(path, dpi=dpi, bbox_inches="tight")
             paths.append(path)
         logger.info(f"Saved figure '{name}' to {', '.join(str(p) for p in paths)}")
         return paths
@@ -231,7 +243,9 @@ def _(logger, mne, prepared_path):
             f"{prepared_path} not found. Run 1_prepare_raw_EEG.py to create it."
         )
 
-    raw = mne.io.read_raw_fif(prepared_path, preload=True)  # preload: ICA and filtering modify the data
+    raw = mne.io.read_raw_fif(
+        prepared_path, preload=True
+    )  # preload: ICA and filtering modify the data
 
     logger.info(
         f"Loaded prepared data from {prepared_path}: {raw.times[-1]:.2f} s, "
@@ -284,7 +298,7 @@ def _(raw):
 @app.cell
 def _(logger, raw):
     # Mark bad channels found during the visual inspection above (not config-driven - see note above)
-    raw.info['bads'] = ['CP5']
+    raw.info["bads"] = ["CP5"]
     print(f"Bad channels: {raw.info['bads']}")
     logger.info(f"Marked bad channels: {raw.info['bads']}")
     return
@@ -328,15 +342,19 @@ def _(mo):
 def _(config, logger, mne, raw):
     # Initialize ICA instance
     ica = mne.preprocessing.ICA(
-        method=config['ica']['method'],  # picard, fastica
-        fit_params=dict(extended=config['ica']['extended']),
-        random_state=config['ica']['random_state'],
+        method=config["ica"]["method"],  # picard, fastica
+        fit_params=dict(extended=config["ica"]["extended"]),
+        random_state=config["ica"]["random_state"],
     )
 
     # Create a copy of the raw data to work with ICA, high-pass/low-pass filtered as configured. This is to enhance the detection of artifacts.
-    raw_ica = raw.copy().filter(l_freq=config['ica']['filter_l_freq'], h_freq=config['ica']['filter_h_freq'])
+    raw_ica = raw.copy().filter(
+        l_freq=config["ica"]["filter_l_freq"], h_freq=config["ica"]["filter_h_freq"]
+    )
 
-    logger.info(f"Fitting ICA (method={config['ica']['method']}, filter={config['ica']['filter_l_freq']}-{config['ica']['filter_h_freq']} Hz)")
+    logger.info(
+        f"Fitting ICA (method={config['ica']['method']}, filter={config['ica']['filter_l_freq']}-{config['ica']['filter_h_freq']} Hz)"
+    )
 
     # Fit ICA (takes a few minutes to run)
     ica.fit(raw_ica)
@@ -362,7 +380,7 @@ def _(ica, save_fig):
     # Inspect ICA components.
     # With many components MNE returns a list of figures (paged 20 at a time), which save_fig handles.
     fig_components = ica.plot_components()
-    save_fig(fig_components, 'ica_components')
+    save_fig(fig_components, "ica_components")
     return
 
 
@@ -403,7 +421,9 @@ def _(config, logger, mne, raw, save_fig):
     # Detect blink events directly in the raw data, using the EOG channel(s) named in config.json.
     # Note: this does NOT select ICA components - it finds when blinks happened, which is a useful
     # sanity check that blinks are present and detectable before trusting any automatic component labelling.
-    eog_events = mne.preprocessing.find_eog_events(raw, ch_name=config['channels']['eog'])
+    eog_events = mne.preprocessing.find_eog_events(
+        raw, ch_name=config["channels"]["eog"]
+    )
     logger.info(f"Detected {len(eog_events)} EOG (blink) events")
 
     # Cut epochs around each detected blink and average them. A clean blink-evoked average with a
@@ -412,14 +432,14 @@ def _(config, logger, mne, raw, save_fig):
     # (-0.2, 0) risks already containing the start of the eye movement.
     eog_epochs = mne.preprocessing.create_eog_epochs(
         raw,
-        ch_name=config['channels']['eog'],
+        ch_name=config["channels"]["eog"],
         baseline=(-0.5, -0.2),
     )
     eog_evoked = eog_epochs.average()
     logger.info(f"Created {len(eog_epochs)} blink epochs")
 
     fig_eog = eog_evoked.plot(show=True)
-    save_fig(fig_eog, 'eog_evoked')
+    save_fig(fig_eog, "eog_evoked")
     return
 
 
@@ -441,28 +461,45 @@ def _(config, ica, logger, raw_ica):
     # threshold is a z-score - higher means stricter, so fewer components get flagged.
     eog_inds, eog_scores = ica.find_bads_eog(
         raw_ica,
-        ch_name=config['channels']['eog'],
-        threshold=config['ica']['eog_threshold'],
+        ch_name=config["channels"]["eog"],
+        threshold=config["ica"]["eog_threshold"],
     )
 
     # Muscle components: score each component on spectrum slope + topography focality (no extra channel needed).
     # Also higher = stricter. Both index lists come back sorted by score, strongest first.
     muscle_inds, muscle_scores = ica.find_bads_muscle(
         raw_ica,
-        threshold=config['ica']['muscle_threshold'],
+        threshold=config["ica"]["muscle_threshold"],
     )
 
-    print(f"Eye (EOG-correlated) components  [threshold={config['ica']['eog_threshold']}]:", eog_inds)
-    print(f"Muscle components                [threshold={config['ica']['muscle_threshold']}]:", muscle_inds)
+    print(
+        f"Eye (EOG-correlated) components  [threshold={config['ica']['eog_threshold']}]:",
+        eog_inds,
+    )
+    print(
+        f"Muscle components                [threshold={config['ica']['muscle_threshold']}]:",
+        muscle_inds,
+    )
 
     # Components to remove: everything either detector flagged
     ica.exclude = sorted(set(eog_inds) | set(muscle_inds))
-    print(f"\n{len(ica.exclude)} of {ica.n_components_} components marked for exclusion:", ica.exclude)
-    print("If that looks like too many, raise the thresholds in the 'ica' section of config.json.")
+    print(
+        f"\n{len(ica.exclude)} of {ica.n_components_} components marked for exclusion:",
+        ica.exclude,
+    )
+    print(
+        "If that looks like too many, raise the thresholds in the 'ica' section of config.json."
+    )
 
-    logger.info(f"find_bads_eog flagged (threshold={config['ica']['eog_threshold']}): {eog_inds}")
-    logger.info(f"find_bads_muscle flagged (threshold={config['ica']['muscle_threshold']}): {muscle_inds}")
-    logger.info(f"Components marked for exclusion ({len(ica.exclude)}/{ica.n_components_}): {ica.exclude}")
+    logger.info(
+        f"find_bads_eog flagged (threshold={config['ica']['eog_threshold']}): {eog_inds}"
+    )
+    logger.info(
+        f"find_bads_muscle flagged (threshold={config['ica']['muscle_threshold']}): {muscle_inds}"
+    )
+    logger.info(
+        f"Components marked for exclusion ({len(ica.exclude)}/{ica.n_components_}): {ica.exclude}"
+    )
     return eog_inds, muscle_inds
 
 
@@ -471,19 +508,21 @@ def _(eog_inds, ica, label_components, logger, muscle_inds, raw_ica):
     # Independent comparison only - iclabel does NOT drive the exclusion decision above.
     # It classifies each component from its topography and spectrum alone, so agreement with the
     # EOG-correlation and muscle detectors is reassuring, and disagreement is worth a closer look.
-    ica_labels = label_components(raw_ica, ica, method='iclabel')
-    labels = ica_labels['labels']
+    ica_labels = label_components(raw_ica, ica, method="iclabel")
+    labels = ica_labels["labels"]
     print(f"{'comp':>5}  {'iclabel says':<18}  flagged by")
-    print('-' * 50)
+    print("-" * 50)
     for _comp in range(ica.n_components_):
         flagged_by = []
         if _comp in eog_inds:
-            flagged_by.append('find_bads_eog')
+            flagged_by.append("find_bads_eog")
         if _comp in muscle_inds:
-            flagged_by.append('find_bads_muscle')
-        if flagged_by or labels[_comp] != 'brain':
-            print(f"{_comp:>5}  {labels[_comp]:<18}  {', '.join(flagged_by) or '-'}")  # Show every excluded component, plus any component iclabel considers non-brain
-    logger.info(f'iclabel labels (info only): {dict(enumerate(labels))}')
+            flagged_by.append("find_bads_muscle")
+        if flagged_by or labels[_comp] != "brain":
+            print(
+                f"{_comp:>5}  {labels[_comp]:<18}  {', '.join(flagged_by) or '-'}"
+            )  # Show every excluded component, plus any component iclabel considers non-brain
+    logger.info(f"iclabel labels (info only): {dict(enumerate(labels))}")
     return
 
 
@@ -511,10 +550,12 @@ def _(mo):
 
 @app.cell
 def _(ica, logger, raw_ica, save_fig):
-    logger.info(f'Inspecting properties of excluded components: {ica.exclude}')
+    logger.info(f"Inspecting properties of excluded components: {ica.exclude}")
     for _comp in ica.exclude:
         figs = ica.plot_properties(raw_ica, picks=_comp)
-        save_fig(figs, f'ica_properties_comp{_comp}')  # plot_properties returns a list (one figure per picked component)
+        save_fig(
+            figs, f"ica_properties_comp{_comp}"
+        )  # plot_properties returns a list (one figure per picked component)
     return
 
 
@@ -541,8 +582,8 @@ def _(mo):
 @app.cell
 def _(raw, save_fig):
     # 2D sensor layout, bad channels shown in red (use kind='3d' instead if you have pyvista installed)
-    fig_sensors = raw.plot_sensors(kind='topomap', show_names=True)
-    save_fig(fig_sensors, 'sensors')
+    fig_sensors = raw.plot_sensors(kind="topomap", show_names=True)
+    save_fig(fig_sensors, "sensors")
     return
 
 
@@ -580,9 +621,11 @@ def _(mo):
 @app.cell
 def _(config, logger, raw):
     # Final filter using the active band selected in config.json
-    l_freq, h_freq = config['filter_bands']['options'][config['filter_bands']['active']]
+    l_freq, h_freq = config["filter_bands"]["options"][config["filter_bands"]["active"]]
     raw.filter(l_freq, h_freq)
-    logger.info(f"Applied final filter: {l_freq}-{h_freq} Hz (band='{config['filter_bands']['active']}')")
+    logger.info(
+        f"Applied final filter: {l_freq}-{h_freq} Hz (band='{config['filter_bands']['active']}')"
+    )
     return
 
 
@@ -636,12 +679,12 @@ def _(
     raw,
     raw_ica,
 ):
-    reports_folder = Path(config['paths']['reports_folder'])
+    reports_folder = Path(config["paths"]["reports_folder"])
     reports_folder.mkdir(exist_ok=True)
 
     report = mne.Report(title=f"EEG cleaning report — {participant_filename}")
-    report.add_raw(raw=raw, title='Cleaned raw data', psd=True, butterfly=False)
-    report.add_ica(ica=ica, title='ICA', inst=raw_ica, picks=ica.exclude)
+    report.add_raw(raw=raw, title="Cleaned raw data", psd=True, butterfly=False)
+    report.add_ica(ica=ica, title="ICA", inst=raw_ica, picks=ica.exclude)
 
     report_path = reports_folder / f"{participant_stem}_cleaning_report.html"
     report.save(report_path, overwrite=True)

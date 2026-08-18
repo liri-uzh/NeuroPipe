@@ -21,3 +21,9 @@ reports/
 figures/
 analyses/
 logs/
+# Python
+__pycache__/
+*.py[cod]
+
+# marimo
+__marimo__/

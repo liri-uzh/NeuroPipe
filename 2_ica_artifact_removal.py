@@ -270,12 +270,6 @@ def _(raw):
 
 
 @app.cell
-def _():
-    1/0
-    return
-
-
-@app.cell
 def _(logger, raw):
     # Mark bad channels found during the visual inspection above (not config-driven - see note above)
     raw.info["bads"] = ["CP5"]

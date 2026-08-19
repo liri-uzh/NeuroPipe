@@ -3,7 +3,8 @@
 # dependencies = [
 #     "marimo>=0.24.0",
 #     "mne[full]==1.12.1",
-#     "mne-icalabel==0.9.0",
+#     "mne-qt-browser @ git+https://github.com/larsoner/mne-qt-browser@cdab8fcbabd7ad741da7ab799d974b46a47e9c4c",
+#     "mne-icalabel[onnx]==0.9.0",
 # ]
 # ///
 
@@ -16,50 +17,10 @@ app = marimo.App()
 @app.cell
 def _():
     import marimo as mo
-
-    return (mo,)
-
-
-@app.function(hide_code=True)
-def use_qt_browser(interval=0.02):
-    """Select MNE's Qt browser and keep its windows responsive inside marimo.
-
-    marimo cells run inside the kernel's asyncio event loop, and Qt windows are
-    only interactive while a Qt event loop is running. Nothing runs one here, so
-    this schedules a background task that repeatedly gives Qt a slice of time to
-    process its pending events - the same trick IPython's `%gui qt` uses. Other
-    cells keep working while the browser window is open.
-
-    Safe to call repeatedly: at most one pump runs per kernel session. Returns the
-    pump task, or None when the notebook is executed as a plain script (no asyncio
-    loop) - there, pass `block=True` to `raw.plot()` instead.
-    """
-    import asyncio
-
     import mne
-    from qtpy.QtWidgets import QApplication
 
-    mne.viz.set_browser_backend('qt')
-
-    async def _pump():
-        while True:
-            qt_app = QApplication.instance()
-            if qt_app is not None:  # created by MNE on the first plot
-                qt_app.processEvents()
-            await asyncio.sleep(interval)
-
-    try:
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        return None  # running as `python 2_ica_artifact_removal.py`, not in marimo
-
-    # Stash the task on the loop, which outlives any single cell run, so re-running
-    # a plotting cell does not leave a second pump behind.
-    task = getattr(loop, "_mne_qt_pump", None)
-    if task is None or task.done():
-        task = loop.create_task(_pump())
-        loop._mne_qt_pump = task
-    return task
+    mne.viz.set_browser_backend("qt")
+    return mne, mo
 
 
 @app.cell(hide_code=True)
@@ -89,9 +50,9 @@ def _(mo):
 @app.cell
 def _():
     import json
-    import mne
-    from mne_icalabel import label_components
     from pathlib import Path
+
+    from mne_icalabel import label_components
 
     # Load researcher/setup-specific settings. Edit config.json, not this cell, to adapt this tutorial to your own data.
     try:
@@ -136,7 +97,7 @@ def _(mo):
 @app.cell
 def _(Path, cleaned_data_folder, config):
     # Participant to clean, and the prefix for every file this notebook writes
-    participant_stem = Path(config['paths']['raw_filename']).stem
+    participant_stem = Path(config["paths"]["raw_filename"]).stem
 
     prepared_path = cleaned_data_folder / f"{participant_stem}_prepared_raw.fif"
     participant_filename = prepared_path.name
@@ -147,15 +108,13 @@ def _(Path, cleaned_data_folder, config):
 def _(cleaned_data_folder, mo, participant_stem, prepared_path):
     _output_path = cleaned_data_folder / f"{participant_stem}_cleaned_raw.fif"
 
-    mo.md(
-        f"""
+    mo.md(f"""
         Cleaning **`{prepared_path}`**
 
         Participant **`{participant_stem}`** — the cleaned data will be written to
         `{_output_path}`, and the log, figures and
         cleaning report are named after the participant in the same way.
-        """
-    )
+        """)
     return
 
 
@@ -281,15 +240,29 @@ def _(mo):
 
 
 @app.cell
+def _(mo):
+    result = mo.callout(
+        mo.md(
+            "The rest of the notebook will run when you've finished viewing the raw "
+            "traces and closed the window."
+        ),
+        kind="info",
+    )
+    result
+    return
+
+
+@app.cell
 def _(raw):
     # Selects MNE's Qt browser and keeps its window responsive — marimo does not run a Qt event
     # loop of its own, so this is called once before every interactive plot in this notebook.
-    use_qt_browser()
+    # use_qt_browser()
 
     # You can also screen through the raw data by plotting it.
     # Show every channel the object contains (EEG + EOG + misc + stim), rather than a hardcoded count.
-    raw.plot(n_channels=len(raw.ch_names), duration=10, scalings=dict(eeg=100e-6), block=True)
-
+    _ = raw.plot(
+        n_channels=len(raw.ch_names), duration=10, scalings=dict(eeg=100e-6), block=True
+    )
     # Note: You can already exclude some channels from the raw data if you see that they are noisy by clicking on the channel name in the plot
     # They will then be stored in the raw.info['bads'] attribute
     return
@@ -386,10 +359,8 @@ def _(ica, save_fig):
 
 @app.cell
 def _(ica, raw_ica):
-    use_qt_browser()
-
     # Inspect ICA sources
-    ica.plot_sources(raw_ica)
+    ica.plot_sources(raw_ica, block=True)
     return
 
 
@@ -597,10 +568,10 @@ def _(logger, raw):
 
 @app.cell
 def _(raw):
-    use_qt_browser()
-
     # Optional: if you browse the data now, you can see that it is cleaned
-    raw.plot(n_channels=len(raw.ch_names), duration=10, scalings=dict(eeg=100e-6))
+    raw.plot(
+        n_channels=len(raw.ch_names), duration=10, scalings=dict(eeg=100e-6), block=True
+    )
     return
 
 
@@ -631,10 +602,10 @@ def _(config, logger, raw):
 
 @app.cell
 def _(raw):
-    use_qt_browser()
-
     # Final inspection before saving
-    raw.plot(n_channels=len(raw.ch_names), duration=10, scalings=dict(eeg=100e-6))
+    raw.plot(
+        n_channels=len(raw.ch_names), duration=10, scalings=dict(eeg=100e-6), block=True
+    )
     return
 
 

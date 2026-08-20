@@ -3,7 +3,7 @@
 # dependencies = [
 #     "marimo>=0.24.0",
 #     "mne[full]==1.12.1",
-#     "mne-qt-browser @ git+https://github.com/larsoner/mne-qt-browser@cdab8fcbabd7ad741da7ab799d974b46a47e9c4c",
+#     "mne-qt-browser @ git+https://github.com/larsoner/mne-qt-browser@2ba32edf3f5f7541d845378a07861c7a565b46bb",
 #     "mne-icalabel[onnx]==0.9.0",
 # ]
 # ///
@@ -30,7 +30,6 @@ def _(mo):
 
     This notebook covers the second stage of the pipeline, starting from the data prepared in `1_prepare_raw_EEG.ipynb`: marking bad channels (d), removing eye and muscle artifacts with ICA (e), interpolating the bad channels (f), filtering the data to the frequency band of interest (g), caching the cleaned data for further analyses (h), and generating a cleaning report (i).
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -44,10 +43,9 @@ def _(mo):
 
     Open `config.json` next to this notebook to see every adjustable parameter and a short note on what it controls.
     """)
-    return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _():
     import json
     from pathlib import Path
@@ -74,14 +72,7 @@ def _():
     # Folder where figures will be saved
     figures_folder = Path(config["paths"]["figures_folder"])
     figures_folder.mkdir(exist_ok=True)
-    return (
-        Path,
-        cleaned_data_folder,
-        config,
-        figures_folder,
-        label_components,
-        mne,
-    )
+    return Path, cleaned_data_folder, config, figures_folder, label_components
 
 
 @app.cell(hide_code=True)
@@ -91,7 +82,6 @@ def _(mo):
 
     The participant is read from `config['paths']['raw_filename']`, which follows the recording selected in `1_prepare_raw_EEG.py`. The matching `*_prepared_raw.fif` in `config['paths']['cleaned_data_folder']` is opened below, and the participant name is the prefix for every file this notebook writes.
     """)
-    return
 
 
 @app.cell
@@ -115,7 +105,6 @@ def _(cleaned_data_folder, mo, participant_stem, prepared_path):
         `{_output_path}`, and the log, figures and
         cleaning report are named after the participant in the same way.
         """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -131,10 +120,9 @@ def _(mo):
     - Some MNE functions (`plot_components` with many components, `plot_properties`) return a **list** of figures rather than one; each gets its own numbered file.
     - **Interactive browsers cannot be saved.** `raw.plot()`, `epochs.plot()`, and `ica.plot_sources()` return live Qt browser windows, not matplotlib figures — they have no `savefig`. Those are for on-screen inspection only; the `mne.Report` at the end of the notebook covers the raw data separately.
     """)
-    return
 
 
-@app.cell
+@app.cell(hide_code=True)
 def _(Path, config, figures_folder, participant_filename, participant_stem):
     import logging
 
@@ -191,7 +179,6 @@ def _(mo):
 
     Because `.fif` stores the complete measurement info, everything configured in the previous notebook comes back with the data: the channel types (EEG/EOG/misc/stim), the montage, the sampling frequency, and a record of the filters already applied. `preload=True` loads the data into memory right away, since every step below (ICA, interpolation, filtering) modifies it. The file is already resampled to `config['resample']['cleaning_hz']` Hz, so it is far smaller than the original `.bdf` and reads in seconds.
     """)
-    return
 
 
 @app.cell
@@ -236,28 +223,20 @@ def _(mo):
 
     These steps ensure the data is ready for further processing and cleaning.
     """)
-    return
 
 
 @app.cell
 def _(mo):
     result = mo.callout(
-        mo.md(
-            "The rest of the notebook will run when you've finished viewing the raw "
-            "traces and closed the window."
-        ),
+        "The rest of the notebook will run when you've finished viewing the raw "
+        "traces and closed the window.",
         kind="info",
     )
     result
-    return
 
 
 @app.cell
 def _(raw):
-    # Selects MNE's Qt browser and keeps its window responsive — marimo does not run a Qt event
-    # loop of its own, so this is called once before every interactive plot in this notebook.
-    # use_qt_browser()
-
     # You can also screen through the raw data by plotting it.
     # Show every channel the object contains (EEG + EOG + misc + stim), rather than a hardcoded count.
     _ = raw.plot(
@@ -265,7 +244,6 @@ def _(raw):
     )
     # Note: You can already exclude some channels from the raw data if you see that they are noisy by clicking on the channel name in the plot
     # They will then be stored in the raw.info['bads'] attribute
-    return
 
 
 @app.cell
@@ -274,7 +252,6 @@ def _(logger, raw):
     raw.info["bads"] = ["CP5"]
     print(f"Bad channels: {raw.info['bads']}")
     logger.info(f"Marked bad channels: {raw.info['bads']}")
-    return
 
 
 @app.cell(hide_code=True)
@@ -308,7 +285,6 @@ def _(mo):
 
     This preparation step ensures that ICA operates on data optimized for identifying and removing artifacts while leaving the original raw data untouched for subsequent analyses.
     """)
-    return
 
 
 @app.cell
@@ -345,7 +321,6 @@ def _(mo):
 
     In MNE, you can both plot the components (scalp topographies) and their sources (time series).
     """)
-    return
 
 
 @app.cell
@@ -354,14 +329,12 @@ def _(ica, save_fig):
     # With many components MNE returns a list of figures (paged 20 at a time), which save_fig handles.
     fig_components = ica.plot_components()
     save_fig(fig_components, "ica_components")
-    return
 
 
 @app.cell
 def _(ica, raw_ica):
     # Inspect ICA sources
-    ica.plot_sources(raw_ica, block=True)
-    return
+    _ = ica.plot_sources(raw_ica, block=True)
 
 
 @app.cell(hide_code=True)
@@ -384,7 +357,6 @@ def _(mo):
 
     As an **independent point of comparison**, the notebook also runs `mne_icalabel`, a neural network that classifies each component from its topography and spectrum alone ('brain', 'eye blink', 'muscle artifact', 'heart beat', ...). Its labels are only *printed* for you to compare against — they do not drive the exclusion decision.
     """)
-    return
 
 
 @app.cell
@@ -411,7 +383,6 @@ def _(config, logger, mne, raw, save_fig):
 
     fig_eog = eog_evoked.plot(show=True)
     save_fig(fig_eog, "eog_evoked")
-    return
 
 
 @app.cell(hide_code=True)
@@ -423,14 +394,13 @@ def _(mo):
 
     The union of both sets becomes `ica.exclude` — the components that will be subtracted from the data when `ica.apply()` runs. Nothing is removed until that step, so you can still inspect and adjust the list first.
     """)
-    return
 
 
 @app.cell
 def _(config, ica, logger, raw_ica):
     # Eye components: correlate each component's time course against the EOG channel(s).
     # threshold is a z-score - higher means stricter, so fewer components get flagged.
-    eog_inds, eog_scores = ica.find_bads_eog(
+    eog_inds, _ = ica.find_bads_eog(
         raw_ica,
         ch_name=config["channels"]["eog"],
         threshold=config["ica"]["eog_threshold"],
@@ -438,7 +408,7 @@ def _(config, ica, logger, raw_ica):
 
     # Muscle components: score each component on spectrum slope + topography focality (no extra channel needed).
     # Also higher = stricter. Both index lists come back sorted by score, strongest first.
-    muscle_inds, muscle_scores = ica.find_bads_muscle(
+    muscle_inds, _ = ica.find_bads_muscle(
         raw_ica,
         threshold=config["ica"]["muscle_threshold"],
     )
@@ -494,7 +464,6 @@ def _(eog_inds, ica, label_components, logger, muscle_inds, raw_ica):
                 f"{_comp:>5}  {labels[_comp]:<18}  {', '.join(flagged_by) or '-'}"
             )  # Show every excluded component, plus any component iclabel considers non-brain
     logger.info(f"iclabel labels (info only): {dict(enumerate(labels))}")
-    return
 
 
 @app.cell
@@ -502,7 +471,6 @@ def _(ica, logger, raw):
     # Apply cleaning to initial raw instance
     ica.apply(raw)
     logger.info("ICA applied to raw data")
-    return
 
 
 @app.cell(hide_code=True)
@@ -516,7 +484,6 @@ def _(mo):
 
     These plots are drawn from `raw_ica`, the unmodified copy the ICA was fitted on, so they show the components as they were regardless of when `ica.apply()` runs. If a component here looks like genuine brain activity, adjust `ica.exclude` and re-run `ica.apply()` on a fresh copy of the raw data.
     """)
-    return
 
 
 @app.cell
@@ -527,7 +494,6 @@ def _(ica, logger, raw_ica, save_fig):
         save_fig(
             figs, f"ica_properties_comp{_comp}"
         )  # plot_properties returns a list (one figure per picked component)
-    return
 
 
 @app.cell(hide_code=True)
@@ -539,7 +505,6 @@ def _(mo):
 
     `interpolate_bads()` reconstructs each bad channel as a weighted combination of its neighbors, using the sensor positions from the montage set in step (a) of the previous notebook — this is why getting the montage right matters even for channels you never mark bad. It also prints the fitted head radius/origin it used for the spline interpolation. This estimate depends on head size: EEG caps commonly come in standard sizes (S/M/L or by head circumference), and using the wrong cap size for a participant subtly worsens interpolation and source localization. Some labs go further and digitize each participant's actual 3D head shape (e.g. with a Polhemus digitizer) for more accurate electrode positions — that's an advanced/optional step this tutorial doesn't cover, but worth knowing about if interpolation quality matters a lot for your analysis.
     """)
-    return
 
 
 @app.cell(hide_code=True)
@@ -547,7 +512,6 @@ def _(mo):
     mo.md(r"""
     Before interpolating, it's worth visually confirming where the bad channel(s) actually sit relative to the rest of the montage — `plot_sensors` highlights any channel currently in `raw.info['bads']` in red.
     """)
-    return
 
 
 @app.cell
@@ -555,7 +519,6 @@ def _(raw, save_fig):
     # 2D sensor layout, bad channels shown in red (use kind='3d' instead if you have pyvista installed)
     fig_sensors = raw.plot_sensors(kind="topomap", show_names=True)
     save_fig(fig_sensors, "sensors")
-    return
 
 
 @app.cell
@@ -563,16 +526,14 @@ def _(logger, raw):
     logger.info(f"Interpolating bad channels: {raw.info['bads']}")
     raw.interpolate_bads(reset_bads=True)
     logger.info("Interpolation complete")
-    return
 
 
 @app.cell
 def _(raw):
     # Optional: if you browse the data now, you can see that it is cleaned
-    raw.plot(
+    _ = raw.plot(
         n_channels=len(raw.ch_names), duration=10, scalings=dict(eeg=100e-6), block=True
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -586,7 +547,6 @@ def _(mo):
 
     **Why the high-pass edge matters**: sweat and other slow-drift artifacts typically only distort the signal over a timescale of 3+ seconds, so they show up as very low-frequency drift. Increasing the high-pass cutoff removes this kind of drift, but it also increasingly distorts genuine slow components of the ERP. As a rule of thumb, keep the high-pass edge at **0.5 Hz or below** unless you have a specific, understood reason to go higher.
     """)
-    return
 
 
 @app.cell
@@ -597,16 +557,14 @@ def _(config, logger, raw):
     logger.info(
         f"Applied final filter: {l_freq}-{h_freq} Hz (band='{config['filter_bands']['active']}')"
     )
-    return
 
 
 @app.cell
 def _(raw):
     # Final inspection before saving
-    raw.plot(
+    _ = raw.plot(
         n_channels=len(raw.ch_names), duration=10, scalings=dict(eeg=100e-6), block=True
     )
-    return
 
 
 @app.cell(hide_code=True)
@@ -616,7 +574,6 @@ def _(mo):
 
     In this final step, the cleaned raw data is cached in MNE’s native .fif format to a folder created at the beginning of this script. This file will be loaded in the next notebook for further processing.
     """)
-    return
 
 
 @app.cell
@@ -625,7 +582,6 @@ def _(cleaned_data_folder, logger, participant_stem, raw):
     save_path = cleaned_data_folder / f"{participant_stem}_cleaned_raw.fif"
     raw.save(save_path, overwrite=True)
     logger.info(f"Saved cleaned data to {save_path}")
-    return
 
 
 @app.cell(hide_code=True)
@@ -635,7 +591,6 @@ def _(mo):
 
     As a final step, `mne.Report` bundles the key QC outputs from this run — the cleaned raw data with its PSD, and the ICA decomposition together with which components were excluded — into a single, self-contained HTML file. This is saved to `config['paths']['reports_folder']` and can be opened in any browser or shared with a collaborator without needing to re-run the notebook, which is a nicer artifact to keep per participant than a folder of loose screenshots.
     """)
-    return
 
 
 @app.cell
@@ -661,7 +616,6 @@ def _(
     report.save(report_path, overwrite=True)
 
     logger.info(f"Saved cleaning report to {report_path}")
-    return
 
 
 if __name__ == "__main__":

@@ -1,0 +1,14 @@
+repos:
+  # Ruff mne
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.0
+    hooks:
+      - id: ruff-check
+        name: lint NeuroPipe notebooks
+        args: ["--fix", "--ignore=B018,C408"]
+        # D103: missing docstring in public function
+        # D400: docstring first line must end with period
+        #args: ["--ignore=D103,D400", "--fix"]
+        types_or: [ python, pyproject ]
+      - id: ruff-format
+        types_or: [ python, pyproject ]

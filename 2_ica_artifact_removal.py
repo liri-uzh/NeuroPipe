@@ -37,42 +37,31 @@ def _(mo):
     mo.md(r"""
     ## Configuration
 
-    All researcher- and setup-specific choices for this pipeline (which channels are EEG/EOG/reference, the EEG system, power-line frequency, filter bands, ICA settings, event codes, epoch windows, ...) live in **`config.json`** at the repository root, instead of being hardcoded throughout the notebook. This is the file you should edit when adapting this tutorial to your own recording — you should rarely need to change the code cells themselves. The sections this notebook reads most are `ica`, `channels` and `filter_bands`.
+    All researcher- and setup-specific choices for this pipeline (which channels are EEG/EOG/reference, the EEG system, power-line frequency, filter bands, ICA settings, event codes, epoch windows, ...) live in **`config.py`** at the repository root, instead of being hardcoded throughout the notebook. This is the file you should edit when adapting this tutorial to your own recording — you should rarely need to change the code cells themselves. The sections this notebook reads most are `ica`, `channels` and `filter_bands`.
 
     Which participant to clean is not one of them: that is chosen with the file browser below.
 
-    Open `config.json` next to this notebook to see every adjustable parameter and a short note on what it controls.
+    Settings are grouped by topic and reached by name — `config.paths.data_folder`, `config.epochs.tmin` — so a misspelled setting is an error naming the field it belongs to, rather than something that surfaces halfway through a long run. Each group is a small dataclass at the top of `config.py`, and the value of every setting sits right next to its name there, with a comment on what it controls — so opening the file shows you what there is to change straight away.
+
+    Open `config.py` next to this notebook to see every adjustable parameter and a short note on what it controls.
     """)
 
 
 @app.cell(hide_code=True)
 def _():
-    import json
-    from pathlib import Path
-
     from mne_icalabel import label_components
 
-    # Load researcher/setup-specific settings. Edit config.json, not this cell, to adapt this tutorial to your own data.
-    try:
-        with open("config.json") as f:
-            config = json.load(f)
-    except json.JSONDecodeError as e:
-        raise ValueError(
-            f"config.json has invalid JSON syntax: {e}\n"
-            "Common causes: a trailing comma after the last item in a list/object, "
-            "single quotes instead of double quotes, or Python's None/True/False "
-            "instead of JSON's null/true/false. Open config.json in a text editor "
-            "and check the line/column mentioned above."
-        ) from e
+    # Every researcher/setup-specific setting lives in config.py. Edit that file, not this cell, to adapt this tutorial to your own data.
+    from config import config
 
     # Folder where the prepared data is read from and the cleaned data will be stored
-    cleaned_data_folder = Path(config["paths"]["cleaned_data_folder"])
+    cleaned_data_folder = config.paths.cleaned_data_folder
     cleaned_data_folder.mkdir(exist_ok=True)  # create the folder if it doesn't exist
 
     # Folder where figures will be saved
-    figures_folder = Path(config["paths"]["figures_folder"])
+    figures_folder = config.paths.figures_folder
     figures_folder.mkdir(exist_ok=True)
-    return Path, cleaned_data_folder, config, figures_folder, label_components
+    return cleaned_data_folder, config, figures_folder, label_components
 
 
 @app.cell(hide_code=True)
@@ -80,14 +69,14 @@ def _(mo):
     mo.md(r"""
     ## The recording this notebook cleans
 
-    The participant is read from `config['paths']['raw_filename']`, which follows the recording selected in `1_prepare_raw_EEG.py`. The matching `*_prepared_raw.fif` in `config['paths']['cleaned_data_folder']` is opened below, and the participant name is the prefix for every file this notebook writes.
+    The participant is read from `config.paths.raw_filename`, which follows the recording selected in `1_prepare_raw_EEG.py`. The matching `*_prepared_raw.fif` in `config.paths.cleaned_data_folder` is opened below, and the participant name is the prefix for every file this notebook writes.
     """)
 
 
 @app.cell
-def _(Path, cleaned_data_folder, config):
+def _(cleaned_data_folder, config):
     # Participant to clean, and the prefix for every file this notebook writes
-    participant_stem = Path(config["paths"]["raw_filename"]).stem
+    participant_stem = config.paths.raw_filename.stem
 
     prepared_path = cleaned_data_folder / f"{participant_stem}_prepared_raw.fif"
     participant_filename = prepared_path.name
@@ -112,21 +101,21 @@ def _(mo):
     mo.md(r"""
     ## Logging and saved figures
 
-    Alongside the config file, this notebook writes a plain-text log (via Python's `logging` module) to `config['paths']['logs_folder']`. This is separate from the notebook's own cell output: a log file gives you a permanent, greppable record of exactly what happened on a given run — which channels were marked bad, how many blinks were detected, which ICA components were removed, ... — which matters for provenance, and becomes essential once you're not watching the notebook run interactively (e.g. running it non-interactively via `jupyter nbconvert --execute` across many participants).
+    Alongside the config file, this notebook writes a plain-text log (via Python's `logging` module) to `config.paths.logs_folder`. This is separate from the notebook's own cell output: a log file gives you a permanent, greppable record of exactly what happened on a given run — which channels were marked bad, how many blinks were detected, which ICA components were removed, ... — which matters for provenance, and becomes essential once you're not watching the notebook run interactively (e.g. running it non-interactively via `jupyter nbconvert --execute` across many participants).
 
     The log file is opened in **append** mode, so re-running the notebook adds to the existing log rather than overwriting it. Each run starts with a timestamped `=== Starting ... ===` line, so you can always tell where one run ends and the next begins.
 
-    The cell below also defines a small `save_fig()` helper. Every figure worth keeping is written to `config['paths']['figures_folder']` as a PNG named after the participant, so the QC plots survive after the notebook is closed. Two details it handles for you:
+    The cell below also defines a small `save_fig()` helper. Every figure worth keeping is written to `config.paths.figures_folder` as a PNG named after the participant, so the QC plots survive after the notebook is closed. Two details it handles for you:
     - Some MNE functions (`plot_components` with many components, `plot_properties`) return a **list** of figures rather than one; each gets its own numbered file.
     - **Interactive browsers cannot be saved.** `raw.plot()`, `epochs.plot()`, and `ica.plot_sources()` return live Qt browser windows, not matplotlib figures — they have no `savefig`. Those are for on-screen inspection only; the `mne.Report` at the end of the notebook covers the raw data separately.
     """)
 
 
 @app.cell(hide_code=True)
-def _(Path, config, figures_folder, participant_filename, participant_stem):
+def _(config, figures_folder, participant_filename, participant_stem):
     import logging
 
-    logs_folder = Path(config["paths"]["logs_folder"])
+    logs_folder = config.paths.logs_folder
     logs_folder.mkdir(exist_ok=True)
 
     logger = logging.getLogger(f"neuropipe.clean.{participant_filename}")
@@ -177,7 +166,7 @@ def _(mo):
 
     The cell below reads back the `.fif` file cached at the end of `1_prepare_raw_EEG.ipynb`. Run that notebook first for this participant — otherwise this cell stops with an error naming the file it expected to find.
 
-    Because `.fif` stores the complete measurement info, everything configured in the previous notebook comes back with the data: the channel types (EEG/EOG/misc/stim), the montage, the sampling frequency, and a record of the filters already applied. `preload=True` loads the data into memory right away, since every step below (ICA, interpolation, filtering) modifies it. The file is already resampled to `config['resample']['cleaning_hz']` Hz, so it is far smaller than the original `.bdf` and reads in seconds.
+    Because `.fif` stores the complete measurement info, everything configured in the previous notebook comes back with the data: the channel types (EEG/EOG/misc/stim), the montage, the sampling frequency, and a record of the filters already applied. `preload=True` loads the data into memory right away, since every step below (ICA, interpolation, filtering) modifies it. The file is already resampled to `config.resample.cleaning_hz` Hz, so it is far smaller than the original `.bdf` and reads in seconds.
     """)
 
 
@@ -261,7 +250,7 @@ def _(mo):
 
     ### Initializing the ICA instance
 
-    The parameters for initializing the ICA instance, read from `config['ica']`, are selected as follows:
+    The parameters for initializing the ICA instance, read from `config.ica`, are selected as follows:
 
     - **`method='infomax'`**: Specifies the ICA algorithm to use. The Infomax method is chosen for its effectiveness in separating sources, particularly in EEG data. Additionally, this is combined with the extended Infomax approach, which improves the algorithm's ability to separate sub-Gaussian and super-Gaussian sources.
 
@@ -269,19 +258,19 @@ def _(mo):
 
     - **`random_state=97`**: Sets a fixed random seed for reproducibility. This ensures that the results of the ICA decomposition remain consistent across runs.
 
-    These parameters are a solid default for EEG data, and are a reasonable starting point — but they are not the only option (`picard` and `fastica` are common alternatives), so they're kept fully editable in `config['ica']`.
+    These parameters are a solid default for EEG data, and are a reasonable starting point — but they are not the only option (`picard` and `fastica` are common alternatives), so they're kept fully editable in `config.ica`.
 
     **Note**: channels already marked bad (step (d) above) are automatically excluded from the ICA fit — `ica.fit()` only uses "good" data channels by default, so make sure bad channels are marked *before* this step, not after.
 
     ### Preparing data for ICA
 
-    Before fitting the ICA, a **copy of the raw data** is created and high-pass/low-pass filtered between `config['ica']['filter_l_freq']` and `config['ica']['filter_h_freq']` Hz (1–100 Hz by default). This filtering range is selected to:
+    Before fitting the ICA, a **copy of the raw data** is created and high-pass/low-pass filtered between `config.ica.filter_l_freq` and `config.ica.filter_h_freq` Hz (1–100 Hz by default). This filtering range is selected to:
 
     - Remove slow drifts and low-frequency noise, such as DC offsets, which can interfere with ICA's ability to separate independent components.
     - Focus on the frequency range where most artifacts, such as eye blinks, muscle noise, and other physiological or environmental artifacts, are present.
     - Improve ICA's ability to separate signal from noise while preserving relevant brain activity.
 
-    This range is an **advanced, editable** setting — the values above work well as a general default, but if you know your artifacts of interest live outside 1–100 Hz you can adjust `config['ica']['filter_l_freq']`/`['filter_h_freq']`.
+    This range is an **advanced, editable** setting — the values above work well as a general default, but if you know your artifacts of interest live outside 1–100 Hz you can adjust `config.ica.filter_l_freq`/`config.ica.filter_h_freq`.
 
     This preparation step ensures that ICA operates on data optimized for identifying and removing artifacts while leaving the original raw data untouched for subsequent analyses.
     """)
@@ -291,18 +280,18 @@ def _(mo):
 def _(config, logger, mne, raw):
     # Initialize ICA instance
     ica = mne.preprocessing.ICA(
-        method=config["ica"]["method"],  # picard, fastica
-        fit_params=dict(extended=config["ica"]["extended"]),
-        random_state=config["ica"]["random_state"],
+        method=config.ica.method,  # picard, fastica
+        fit_params=dict(extended=config.ica.extended),
+        random_state=config.ica.random_state,
     )
 
     # Create a copy of the raw data to work with ICA, high-pass/low-pass filtered as configured. This is to enhance the detection of artifacts.
     raw_ica = raw.copy().filter(
-        l_freq=config["ica"]["filter_l_freq"], h_freq=config["ica"]["filter_h_freq"]
+        l_freq=config.ica.filter_l_freq, h_freq=config.ica.filter_h_freq
     )
 
     logger.info(
-        f"Fitting ICA (method={config['ica']['method']}, filter={config['ica']['filter_l_freq']}-{config['ica']['filter_h_freq']} Hz)"
+        f"Fitting ICA (method={config.ica.method}, filter={config.ica.filter_l_freq}-{config.ica.filter_h_freq} Hz)"
     )
 
     # Fit ICA (takes a few minutes to run)
@@ -344,10 +333,10 @@ def _(mo):
 
     Rather than deciding by eye which components are artifacts, MNE can flag them automatically. Two complementary detectors are used here, each targeting a different artifact type:
 
-    - **Eye blinks / eye movements** — `ica.find_bads_eog()` correlates every component's time course against the actual **EOG electrodes** (`config['channels']['eog']`). Because it compares against a real recorded signal, this is the most trustworthy of the automatic methods.
+    - **Eye blinks / eye movements** — `ica.find_bads_eog()` correlates every component's time course against the actual **EOG electrodes** (`config.channels.eog`). Because it compares against a real recorded signal, this is the most trustworthy of the automatic methods.
     - **Muscle activity** — `ica.find_bads_muscle()` doesn't need a dedicated channel. It scores each component on its **power spectrum slope** (muscle activity is broadband and dominates high frequencies, unlike the 1/f falloff of genuine brain signal) combined with how **spatially focal** the component's topography is.
 
-    **Both detectors are threshold-driven, and both thresholds live in `config['ica']`.** For each one, **higher = stricter = fewer components flagged**:
+    **Both detectors are threshold-driven, and both thresholds live in `config.ica`.** For each one, **higher = stricter = fewer components flagged**:
     - `eog_threshold` (default **3.0**) is a z-score on the correlation with the EOG channels.
     - `muscle_threshold` (default **0.5**) scores each component against a typical muscle profile. MNE's default is fairly permissive on 32-channel EEG — if too many components are being flagged as muscle, raise this toward 0.8–1.0.
 
@@ -361,12 +350,10 @@ def _(mo):
 
 @app.cell
 def _(config, logger, mne, raw, save_fig):
-    # Detect blink events directly in the raw data, using the EOG channel(s) named in config.json.
+    # Detect blink events directly in the raw data, using the EOG channel(s) named in config.py.
     # Note: this does NOT select ICA components - it finds when blinks happened, which is a useful
     # sanity check that blinks are present and detectable before trusting any automatic component labelling.
-    eog_events = mne.preprocessing.find_eog_events(
-        raw, ch_name=config["channels"]["eog"]
-    )
+    eog_events = mne.preprocessing.find_eog_events(raw, ch_name=config.channels.eog)
     logger.info(f"Detected {len(eog_events)} EOG (blink) events")
 
     # Cut epochs around each detected blink and average them. A clean blink-evoked average with a
@@ -375,7 +362,7 @@ def _(config, logger, mne, raw, save_fig):
     # (-0.2, 0) risks already containing the start of the eye movement.
     eog_epochs = mne.preprocessing.create_eog_epochs(
         raw,
-        ch_name=config["channels"]["eog"],
+        ch_name=config.channels.eog,
         baseline=(-0.5, -0.2),
     )
     eog_evoked = eog_epochs.average()
@@ -402,23 +389,23 @@ def _(config, ica, logger, raw_ica):
     # threshold is a z-score - higher means stricter, so fewer components get flagged.
     eog_inds, _ = ica.find_bads_eog(
         raw_ica,
-        ch_name=config["channels"]["eog"],
-        threshold=config["ica"]["eog_threshold"],
+        ch_name=config.channels.eog,
+        threshold=config.ica.eog_threshold,
     )
 
     # Muscle components: score each component on spectrum slope + topography focality (no extra channel needed).
     # Also higher = stricter. Both index lists come back sorted by score, strongest first.
     muscle_inds, _ = ica.find_bads_muscle(
         raw_ica,
-        threshold=config["ica"]["muscle_threshold"],
+        threshold=config.ica.muscle_threshold,
     )
 
     print(
-        f"Eye (EOG-correlated) components  [threshold={config['ica']['eog_threshold']}]:",
+        f"Eye (EOG-correlated) components  [threshold={config.ica.eog_threshold}]:",
         eog_inds,
     )
     print(
-        f"Muscle components                [threshold={config['ica']['muscle_threshold']}]:",
+        f"Muscle components                [threshold={config.ica.muscle_threshold}]:",
         muscle_inds,
     )
 
@@ -429,14 +416,14 @@ def _(config, ica, logger, raw_ica):
         ica.exclude,
     )
     print(
-        "If that looks like too many, raise the thresholds in the 'ica' section of config.json."
+        "If that looks like too many, raise the thresholds in the 'ica' section of config.py."
     )
 
     logger.info(
-        f"find_bads_eog flagged (threshold={config['ica']['eog_threshold']}): {eog_inds}"
+        f"find_bads_eog flagged (threshold={config.ica.eog_threshold}): {eog_inds}"
     )
     logger.info(
-        f"find_bads_muscle flagged (threshold={config['ica']['muscle_threshold']}): {muscle_inds}"
+        f"find_bads_muscle flagged (threshold={config.ica.muscle_threshold}): {muscle_inds}"
     )
     logger.info(
         f"Components marked for exclusion ({len(ica.exclude)}/{ica.n_components_}): {ica.exclude}"
@@ -541,9 +528,9 @@ def _(mo):
     mo.md(r"""
     ## (g) Filtering the data in auditory-relevant frequencies
 
-    In this step, the data is filtered to the band given by `config['filter_bands']`, which for this study's auditory speech-processing analysis is 0.5–30 Hz.
+    In this step, the data is filtered to the band given by `config.filter_bands`, which for this study's auditory speech-processing analysis is 0.5–30 Hz.
 
-    **Which band is "correct" depends on the analysis, not just the dataset.** Rather than hardcoding one band, `config['filter_bands']` stores a **dictionary of named options** (`auditory_erp`, `broadband`, `alpha`, ...) plus an `active` key selecting which one this run uses — add your own named band and point `active` at it instead of editing numbers inline.
+    **Which band is "correct" depends on the analysis, not just the dataset.** Rather than hardcoding one band, `config.filter_bands` stores a **dictionary of named options** (`auditory_erp`, `broadband`, `alpha`, ...) plus an `active` key selecting which one this run uses — add your own named band and point `active` at it instead of editing numbers inline.
 
     **Why the high-pass edge matters**: sweat and other slow-drift artifacts typically only distort the signal over a timescale of 3+ seconds, so they show up as very low-frequency drift. Increasing the high-pass cutoff removes this kind of drift, but it also increasingly distorts genuine slow components of the ERP. As a rule of thumb, keep the high-pass edge at **0.5 Hz or below** unless you have a specific, understood reason to go higher.
     """)
@@ -551,11 +538,11 @@ def _(mo):
 
 @app.cell
 def _(config, logger, raw):
-    # Final filter using the active band selected in config.json
-    l_freq, h_freq = config["filter_bands"]["options"][config["filter_bands"]["active"]]
+    # Final filter using the active band selected in config.py
+    l_freq, h_freq = config.filter_bands.band
     raw.filter(l_freq, h_freq)
     logger.info(
-        f"Applied final filter: {l_freq}-{h_freq} Hz (band='{config['filter_bands']['active']}')"
+        f"Applied final filter: {l_freq}-{h_freq} Hz (band='{config.filter_bands.active}')"
     )
 
 
@@ -589,13 +576,12 @@ def _(mo):
     mo.md(r"""
     ## (i) Generating a cleaning report
 
-    As a final step, `mne.Report` bundles the key QC outputs from this run — the cleaned raw data with its PSD, and the ICA decomposition together with which components were excluded — into a single, self-contained HTML file. This is saved to `config['paths']['reports_folder']` and can be opened in any browser or shared with a collaborator without needing to re-run the notebook, which is a nicer artifact to keep per participant than a folder of loose screenshots.
+    As a final step, `mne.Report` bundles the key QC outputs from this run — the cleaned raw data with its PSD, and the ICA decomposition together with which components were excluded — into a single, self-contained HTML file. This is saved to `config.paths.reports_folder` and can be opened in any browser or shared with a collaborator without needing to re-run the notebook, which is a nicer artifact to keep per participant than a folder of loose screenshots.
     """)
 
 
 @app.cell
 def _(
-    Path,
     config,
     ica,
     logger,
@@ -605,7 +591,7 @@ def _(
     raw,
     raw_ica,
 ):
-    reports_folder = Path(config["paths"]["reports_folder"])
+    reports_folder = config.paths.reports_folder
     reports_folder.mkdir(exist_ok=True)
 
     report = mne.Report(title=f"EEG cleaning report — {participant_filename}")

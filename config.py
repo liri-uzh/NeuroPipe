@@ -114,26 +114,12 @@ class PowerLine:
     Add more regions to the table if needed.
     """
 
-    region: str = "EU"
     frequencies_by_region: dict[str, list[float]] = default(
         {
             "EU": [50, 100, 150],
             "NA": [60, 120, 180],
         }
     )
-
-    @property
-    def frequencies(self) -> list[float]:
-        """Power-line frequency and its harmonics for the configured region."""
-        try:
-            return self.frequencies_by_region[self.region]
-        except KeyError:
-            known = ", ".join(self.frequencies_by_region) or "(none)"
-            raise ConfigError(
-                f"power_line.region is '{self.region}', which has no entry in "
-                f"frequencies_by_region (known regions: {known}). Add one for it in "
-                "config.py, or pick one of the regions listed."
-            ) from None
 
 
 @dataclass(frozen=True)

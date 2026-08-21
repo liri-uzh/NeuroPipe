@@ -390,34 +390,68 @@ def _(mo):
 
 
 @app.cell
-def _(raw):
-    raw.compute_psd().plot()
+def _(raw, save_fig):
+    fig_psd = raw.compute_psd().plot()
+    save_fig(fig_psd, "psd")
+    fig_psd
 
 
 @app.cell(hide_code=True)
 def _(mo):
     mo.md(r"""
-    The PSD should look clean, displaying:
+    If the PSD plot looks clean, displaying...
+
     - The expected **EEG shoulder**,  a noticeable increase in power is observed around 4–10 Hz, reflecting theta and alpha activity.
     - A general **1/f shape**, where power decreases with increasing frequency.
-    - Evidence of notch filters applied at specific frequencies (e.g., 50 Hz and harmonics), as power line noise artifacts are no longer visible.
+
+    ... choose option "No notch filtering" in the button below.
+    - If you see peaks at either 50 Hz or 60 Hz and their harmonics, choose the corresponding options in the button below.
     """)
 
 
 @app.cell
-def _(config, logger, raw):
-    # Apply notch filter at the power-line frequency and harmonics for the configured region
-    notch_freqs = config.power_line.frequencies
-    raw.notch_filter(notch_freqs)
-    logger.info(
-        f"Applied notch filter at {notch_freqs} Hz (region={config.power_line.region})"
-    )
+def _(mo):
+    options = ["No notch filter", "50 Hz notch filter", "60 Hz notch filter"]
+    radio = mo.ui.radio(options=options)
+    mo.hstack([radio])
+    return (radio,)
 
 
 @app.cell
-def _(raw, save_fig):
-    fig_psd = raw.compute_psd().plot()
-    save_fig(fig_psd, "psd")
+def _(config, logger, radio, raw):
+    if radio.value == "No notch filter":
+        filtered = False
+        logger.info("No notch filter applied.")
+
+    elif radio.value == "50 Hz notch filter":
+        raw.notch_filter(freqs=config.power_line.frequencies_by_region["EU"])
+        filtered = True
+        logger.info(
+            f"Applied notch filter at {config.power_line.frequencies_by_region['EU']} Hz."
+        )
+
+    elif radio.value == "60 Hz notch filter":
+        raw.notch_filter(freqs=config.power_line.frequencies_by_region["NA"])
+        filtered = True
+        logger.info(
+            f"Applied notch filter at {config.power_line.frequencies_by_region['NA']} Hz"
+        )
+    return (filtered,)
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    If the filter was applied, let's plot and see if it worked.
+    """)
+
+
+@app.cell
+def _(filtered, raw, save_fig):
+    if filtered == True:
+        fig_psd_filtered = raw.compute_psd().plot()
+        save_fig(fig_psd_filtered, "psd")
+        fig_psd_filtered
 
 
 @app.cell(hide_code=True)

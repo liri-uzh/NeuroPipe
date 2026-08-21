@@ -109,7 +109,6 @@ class Resample:
 class PowerLine:
     """Power-line noise to notch out, which depends on where the data was recorded.
 
-    The frequency is continent-dependent, so it is kept as a lookup table: set `region` to
     match where the data was recorded and the right frequencies are picked automatically.
     """
 

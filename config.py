@@ -111,7 +111,6 @@ class PowerLine:
 
     The frequency is continent-dependent, so it is kept as a lookup table: set `region` to
     match where the data was recorded and the right frequencies are picked automatically.
-    Add more regions to the table if needed.
     """
 
     frequencies_by_region: dict[str, list[float]] = default(

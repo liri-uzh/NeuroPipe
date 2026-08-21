@@ -109,7 +109,6 @@ class Resample:
 class PowerLine:
     """Power-line noise to notch out, which depends on where the data was recorded.
 
-    match where the data was recorded and the right frequencies are picked automatically.
     """
 
     frequencies_by_region: dict[str, list[float]] = default(

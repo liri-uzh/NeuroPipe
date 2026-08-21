@@ -26,6 +26,7 @@ def _(mo):
 
     This notebook covers the first stage of the pipeline: reading the raw BioSemi file (a), cropping it to the paradigm of interest, setting the reference and resampling the data (b), and removing power line noise (c). Nothing beyond line noise is taken out of the signal here — bad channels, eye and muscle artifacts are dealt with in `2_ica_artifact_removal.ipynb`, which loads the file cached in the last cell of this notebook.
     """)
+    return
 
 
 @app.cell(hide_code=True)
@@ -41,6 +42,7 @@ def _(mo):
 
     Open `config.py` next to this notebook to see every adjustable parameter and a short note on what it controls.
     """)
+    return
 
 
 @app.cell
@@ -71,6 +73,7 @@ def _(mo):
 
     If nothing is selected, the notebook falls back to the recording named by `config.paths.data_folder` and `config.paths.raw_filename` — which is also where the choice is recorded, once the prepared data is saved in the last cell. The notebooks that follow read those two values, so picking a participant here points the whole pipeline at it, and an unattended run over a batch of participants still works without anyone clicking anything.
     """)
+    return
 
 
 @app.cell
@@ -175,6 +178,7 @@ def _(cleaned_data_folder, mo, participant_stem, raw_path):
         `{_output_path}`, and the log and figures are
         named after the participant in the same way.
         """)
+    return
 
 
 @app.cell(hide_code=True)
@@ -190,6 +194,7 @@ def _(mo):
     - Some MNE functions (`plot_components` with many components, `plot_properties`) return a **list** of figures rather than one; each gets its own numbered file.
     - **Interactive browsers cannot be saved.** `raw.plot()`, `epochs.plot()`, and `ica.plot_sources()` return live Qt browser windows, not matplotlib figures — they have no `savefig`. Those are for on-screen inspection only; the `mne.Report` at the end of the notebook covers the raw data separately.
     """)
+    return
 
 
 @app.cell
@@ -263,6 +268,7 @@ def _(mo):
 
     Always have aproper look at the `raw.info` to ensure everything is correct.
     """)
+    return
 
 
 @app.cell
@@ -290,6 +296,7 @@ def _(config, data_folder, logger, mne, participant_filename):
 def _(raw):
     # Check info about the raw data
     raw.info
+    return
 
 
 @app.cell
@@ -310,6 +317,7 @@ def _(config, logger, mne, raw):
 
     # Check raw.info again
     raw.info
+    return
 
 
 @app.cell(hide_code=True)
@@ -325,6 +333,7 @@ def _(mo):
 
     This is a bit unusual, but MNE works with seconds as standard unit of time. Always keep this in mind.
     """)
+    return
 
 
 @app.cell
@@ -336,6 +345,7 @@ def _(config, logger, raw):
     # Check the new duration of the recording
     print(f"New duration of the recording: {round(raw.times[-1], 2)} seconds")
     logger.info(f"Cropped to {config.crop}; new duration {round(raw.times[-1], 2)} s")
+    return
 
 
 @app.cell(hide_code=True)
@@ -357,6 +367,7 @@ def _(mo):
 
     These steps prepare the data for efficient processing and further cleaning.
     """)
+    return
 
 
 @app.cell
@@ -374,6 +385,7 @@ def _(config, logger, raw):
 
     # Check the new sampling frequency
     raw.info
+    return
 
 
 @app.cell(hide_code=True)
@@ -387,6 +399,7 @@ def _(mo):
 
     Notice that sometimes there are also peaks at the *harmonics* (integer multiples) of the power line frequency (here, a peak at the 3rd harmonic, 150 Hz). Let's look at the spectrum of your data file next, to see if it needs notch filtering.
     """)
+    return
 
 
 @app.cell
@@ -394,6 +407,7 @@ def _(raw, save_fig):
     fig_psd = raw.compute_psd().plot()
     save_fig(fig_psd, "psd")
     fig_psd
+    return
 
 
 @app.cell(hide_code=True)
@@ -407,6 +421,7 @@ def _(mo):
     ... choose option "No notch filtering" in the button below.
     - If you see peaks at either 50 Hz or 60 Hz and their harmonics, choose the corresponding options in the button below.
     """)
+    return
 
 
 @app.cell
@@ -418,7 +433,8 @@ def _(mo):
 
 
 @app.cell
-def _(config, logger, radio, raw):
+def _(config, logger, mo, radio, raw):
+    mo.stop(not radio.value)
     if radio.value == "No notch filter":
         filtered = False
         logger.info("No notch filter applied.")
@@ -440,10 +456,11 @@ def _(config, logger, radio, raw):
 
 
 @app.cell(hide_code=True)
-def _(mo):
-    mo.md(r"""
-    If the filter was applied, let's plot and see if it worked.
-    """)
+def _(mo, filtered):
+    if not filtered:
+        mo.md("OK, not applying notch filter!")
+    else:
+        mo.md("Filter applied, let's plot and see if it worked.")
 
 
 @app.cell
@@ -452,6 +469,7 @@ def _(filtered, raw, save_fig):
         fig_psd_filtered = raw.compute_psd().plot()
         save_fig(fig_psd_filtered, "psd")
         fig_psd_filtered
+    return
 
 
 @app.cell(hide_code=True)
@@ -467,6 +485,7 @@ def _(mo):
     - **`*_prepared_raw.fif`** — written here, the input to the ICA notebook.
     - **`*_cleaned_raw.fif`** — written at the end of the ICA notebook, the fully cleaned data the analysis notebook loads.
     """)
+    return
 
 
 @app.cell
@@ -486,6 +505,7 @@ def _(
     # Point config.py at this recording so the next notebook opens the matching file
     if remember_selection(raw_path):
         logger.info(f"Recorded {raw_path} in config.py")
+    return
 
 
 @app.cell

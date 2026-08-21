@@ -5,7 +5,7 @@ repos:
     hooks:
       - id: ruff-check
         name: lint NeuroPipe notebooks
-        args: ["--fix", "--ignore=B018,C408,RUF009"]
+        args: ["--fix", "--ignore=B018,C408,RUF009,PLR1711"]
         # D103: missing docstring in public function
         # D400: docstring first line must end with period
         #args: ["--ignore=D103,D400", "--fix"]

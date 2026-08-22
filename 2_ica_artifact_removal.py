@@ -3,7 +3,7 @@
 # dependencies = [
 #     "marimo>=0.24.0",
 #     "mne[full]==1.12.1",
-#     "mne-qt-browser @ git+https://github.com/larsoner/mne-qt-browser@2ba32edf3f5f7541d845378a07861c7a565b46bb",
+#     "mne-qt-browser @ git+https://github.com/larsoner/mne-qt-browser@main",
 #     "mne-icalabel[onnx]==0.9.0",
 # ]
 # ///

@@ -29,23 +29,6 @@ def _(mo):
     ## (a) Creating epochs from cleaned raw files
 
     Now that the raw data has been cleaned, the next step is to create **epochs**—segments of EEG data time-locked to specific events. This is done to isolate the neural responses to specific stimuli and exclude unrelated portions of the recording.
-
-    ### Finding events
-
-    The `find_events` function extracts all the recorded events from the stim channel named in `config.channels.stim_channel` — on a BioSemi system this is the `Status` channel. These events correspond to the triggers recorded during the experiment, indicating when specific stimuli or actions occurred. As you can see in the output of this function, there are other triggers present in the data, but they are not crucial for this analysis.
-
-    ### Creating epochs
-
-    Using the `Epochs` class, the cleaned data is segmented into epochs. Here's an explanation of the key parameters, all read from `config.epochs` so they can be **fully adapted to your own trigger scheme**:
-    - **`events`**: The extracted events from the stim channel.
-    - **`event_id`**: A dict mapping a label to the trigger code(s) of interest — `{'sentence onset': 256}` here, since the trigger code 256 marks the onset of speech. "Soft triggers" were used, so the same code (256) was used for every trial, independent of the experimental condition. If your paradigm uses different codes per condition, add more entries to this dict.
-    - **`tmin=-0.200`**: Includes 200 ms of data before the stimulus onset as a baseline period. This is a standard choice for EEG analyses to capture pre-stimulus activity.
-    - **`tmax=7.000`**: Captures 7 seconds of data following the stimulus onset. This duration was chosen because the sentences in the experiment had an average length of 7 seconds, ensuring the epochs cover the entire stimulus duration. Set `tmax` to cover the longest window any of your downstream analyses need — individual analyses can always crop back down (see the AEP step below), but they can't recover data outside the original epoch.
-    - **`baseline=(-0.200, 0)`**: Sets a baseline correction window from -200 to 0 ms to account for drift or other slow fluctuations in the data.
-
-    This step creates time-locked epochs that align the EEG signals to the presentation of each stimulus, preparing the data for further analyses.
-
-    As you can seen from the output, there are 120 epochs, which correspond to the 120 sentences presented in the experiment.
     """)
     return
 
@@ -104,7 +87,7 @@ def _(mo):
     mo.md(r"""
     ## Logging
 
-    As in notebook 1, this notebook writes a plain-text log to `config.paths.logs_folder` alongside its normal cell output — a permanent, greppable record of what this run actually did (how many events/epochs were found, condition counts, ...), independent of whether anyone was watching it run.
+    As in notebook 1, this notebook writes a plain-text log to `config.paths.logs_folder` alongside its normal cell output — a permanent, searchable record of what this run actually did (how many events/epochs were found, condition counts, ...), independent of whether anyone was watching it run.
 
     The log file is opened in **append** mode, so re-running the notebook adds to the existing log rather than overwriting it. Each run starts with a timestamped `=== Starting ... ===` line marking where one run ends and the next begins.
     """)
@@ -161,23 +144,76 @@ def _(config, figures_folder, participant_filename, participant_stem):
     return logger, save_fig
 
 
-@app.cell
-def _(config, mne, raw_cleaned):
-    print(config.channels.stim_channel)
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Finding events
 
-    events1 = mne.find_events(raw_cleaned, stim_channel=config.channels.stim_channel)
-    events2 = mne.find_events(
-        raw_cleaned, stim_channel=config.channels.stim_channel, initial_event=True
-    )
-    raw_cleaned.plot(picks="stim", block=True)
+    The `find_events` function extracts all the recorded events from the stim channel named in `config.channels.stim_channel` — on a BioSemi system this is the `Status` channel. These events correspond to the triggers recorded during the experiment, indicating when specific stimuli or actions occurred. As you can see in the output of this function, there are other triggers present in the data, but they are not crucial for this analysis.
+    """)
     return
 
 
 @app.cell
-def _(config, logger, mne, raw_cleaned):
+def _(config, mne, raw_cleaned):
     # First, find all the events recorded by the stim channel named in config.py
     events = mne.find_events(raw_cleaned, stim_channel=config.channels.stim_channel)
+    return (events,)
 
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Viewing the detected events in context
+
+    You can pass the extracted events array to the `raw.plot()` function, in order to view the events at the times they occurred during the recording.
+    """)
+    return
+
+
+@app.cell
+def _(events, raw_cleaned):
+    # Show every channel the object contains (EEG + EOG + misc + stim), rather than a hardcoded count
+    _ = raw_cleaned.plot(
+        n_channels=len(raw_cleaned.ch_names),
+        duration=10,
+        scalings=dict(eeg=100e-6),
+        events=events,
+        block=True,
+    )
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # TODO
+    add a block (that runs conditionally?) that demonstrates how to subset your events array to only the events of interest, prior to epoching. If you want to get really fancy, a (hidden) cell could compute the unique event values in the `events` array, read in the `event_id` dict, and programmatically generate a set of checkboxes that the user could tick to indicate which event id(s) they want to create epochs around. (since they're tickboxes, you probably want a "I'm done" button too, since otherwise computation will start as soon as one box is ticked, then re-start as soon as another box is ticked... not efficient)
+    """)
+    return
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    ### Creating epochs
+
+    Using the `Epochs` class, the cleaned data is segmented into epochs. Here's an explanation of the key parameters, all read from `config.epochs` so they can be **fully adapted to your own trigger scheme**:
+    - **`events`**: The extracted events from the stim channel.
+    - **`event_id`**: A dict mapping a label to the trigger code(s) of interest — `{'sentence onset': 256}` here, since the trigger code 256 marks the onset of speech. "Soft triggers" were used, so the same code (256) was used for every trial, independent of the experimental condition. If your paradigm uses different codes per condition, add more entries to this dict.
+    - **`tmin=-0.200`**: Includes 200 ms of data before the stimulus onset as a baseline period. This is a standard choice for EEG analyses to capture pre-stimulus activity.
+    - **`tmax=7.000`**: Captures 7 seconds of data following the stimulus onset. This duration was chosen because the sentences in the experiment had an average length of 7 seconds, ensuring the epochs cover the entire stimulus duration. Set `tmax` to cover the longest window any of your downstream analyses need — individual analyses can always crop back down (see the AEP step below), but they can't recover data outside the original epoch.
+    - **`baseline=(-0.200, 0)`**: Sets a baseline correction window from -200 to 0 ms to account for drift or other slow fluctuations in the data.
+
+    This step creates time-locked epochs that align the EEG signals to the presentation of each stimulus, preparing the data for further analyses.
+
+    As you can seen from the output, there are 120 epochs, which correspond to the 120 sentences presented in the experiment.
+    """)
+    return
+
+
+@app.cell
+def _(config, events, logger, mne, raw_cleaned):
     epochs = mne.Epochs(
         raw_cleaned,
         events=events,
@@ -194,28 +230,21 @@ def _(config, logger, mne, raw_cleaned):
     )
 
     epochs
-    return epochs, events
+    return (epochs,)
 
 
-@app.cell
-def _(events, raw_cleaned):
-    # '%matplotlib qt' command supported automatically in marimo
-    # Switching to the interactive Qt backend here, right before the first plot — this stays in effect
-    # for the rest of the notebook, so it only needs to be set once.
-
-    # Show every channel the object contains (EEG + EOG + misc + stim), rather than a hardcoded count
-    raw_cleaned.plot(
-        n_channels=len(raw_cleaned.ch_names),
-        duration=10,
-        scalings=dict(eeg=100e-6),
-        events=events,
-    )
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # TODO
+    (need better text) Now, let's plot it!
+    """)
     return
 
 
 @app.cell
 def _(epochs):
-    epochs.plot(n_channels=len(epochs.ch_names), n_epochs=4)
+    _ = epochs.plot(n_channels=len(epochs.ch_names), n_epochs=4, block=True)
     return
 
 
@@ -306,6 +335,15 @@ def _(epochs):
     # Check number of epochs
     epochs_context
     return epochs_context, epochs_random
+
+
+@app.cell(hide_code=True)
+def _(mo):
+    mo.md(r"""
+    # TODO
+    I'm starting to agree with Beliz that it might be a good idea to split this notebook into 2.  I think this spot here is probably the right place to do it... but I guess you'd have to write the Epochs to disk first (and also the subsetted `events` array), then read them back in afterward.
+    """)
+    return
 
 
 @app.cell(hide_code=True)
